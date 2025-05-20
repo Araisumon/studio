@@ -13,7 +13,7 @@ import { LanguageSelector } from "./LanguageSelector";
 import { SettingsPanel, type PolyglotSettings } from "./SettingsPanel";
 import { correctWriting, type CorrectWritingInput, type CorrectWritingOutput } from "@/ai/flows/correct-writing";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Info, Wand2, BookOpenText } from "lucide-react";
+import { Loader2, Info, Wand2, BookOpenText, Smile, Quote, Shuffle, FileText } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
@@ -30,6 +30,9 @@ const defaultSettings: PolyglotSettings = {
   flagSpelling: true,
   flagPunctuation: true,
   flagStyle: false,
+  analyzeTone: false,
+  explainIdioms: false,
+  suggestStructureVariations: false,
 };
 
 export function CorrectionInterface() {
@@ -53,7 +56,14 @@ export function CorrectionInterface() {
       const input: CorrectWritingInput = {
         text: data.text,
         language: data.language,
-        ...settings,
+        correctionLevel: settings.correctionLevel,
+        flagGrammar: settings.flagGrammar,
+        flagSpelling: settings.flagSpelling,
+        flagPunctuation: settings.flagPunctuation,
+        flagStyle: settings.flagStyle,
+        analyzeTone: settings.analyzeTone,
+        explainIdioms: settings.explainIdioms,
+        suggestStructureVariations: settings.suggestStructureVariations,
       };
       const result = await correctWriting(input);
       setCorrectionResult(result);
@@ -62,7 +72,7 @@ export function CorrectionInterface() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to correct text. Please try again.",
+        description: `Failed to process text: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
       });
     } finally {
       setIsLoading(false);
@@ -118,15 +128,15 @@ export function CorrectionInterface() {
                 <p className="text-sm text-destructive mt-1">{form.formState.errors.language.message}</p>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full md:w-auto">
                 <SettingsPanel settings={settings} onSettingsChange={handleSettingsChange} />
-                <Button type="submit" disabled={isLoading} className="w-full md:w-auto px-6 py-3 text-base">
+                <Button type="submit" disabled={isLoading} className="flex-grow md:flex-grow-0 px-6 py-3 text-base">
                   {isLoading ? (
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   ) : (
                     <Wand2 className="mr-2 h-5 w-5" />
                   )}
-                  Correct Text
+                  Correct & Analyze
                 </Button>
             </div>
           </div>
@@ -135,7 +145,7 @@ export function CorrectionInterface() {
         {isLoading && (
           <div className="flex items-center justify-center p-8 rounded-md border border-dashed">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-3 text-muted-foreground">Correcting your text...</p>
+            <p className="ml-3 text-muted-foreground">Polyglot Pal is thinking...</p>
           </div>
         )}
 
@@ -143,7 +153,10 @@ export function CorrectionInterface() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl">Corrected Text</CardTitle>
+                <div className="flex items-center space-x-2">
+                    <FileText className="h-6 w-6 text-primary" />
+                    <CardTitle className="text-xl">Corrected Text</CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -158,14 +171,14 @@ export function CorrectionInterface() {
 
             {correctionResult.explanation && (
               <Alert>
-                <Info className="h-5 w-5" />
-                <AlertTitle>Explanation</AlertTitle>
-                <AlertDescription className="whitespace-pre-wrap">
+                <Info className="h-5 w-5 mt-1" />
+                <AlertTitle className="font-semibold">Explanation of Corrections</AlertTitle>
+                <AlertDescription className="whitespace-pre-wrap text-sm">
                   {correctionResult.explanation}
                 </AlertDescription>
               </Alert>
             )}
-
+            
             {correctionResult.keyVocabulary && correctionResult.keyVocabulary.length > 0 && (
               <Card>
                 <CardHeader>
@@ -174,13 +187,13 @@ export function CorrectionInterface() {
                     <CardTitle className="text-xl">Key Vocabulary & Phrases</CardTitle>
                   </div>
                   <CardDescription>
-                    Important terms and phrases from your corrected text with explanations.
+                    Important terms from your text with explanations.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Accordion type="single" collapsible className="w-full">
                     {correctionResult.keyVocabulary.map((item, index) => (
-                      <AccordionItem value={`item-${index}`} key={index}>
+                      <AccordionItem value={`vocab-${index}`} key={`vocab-${index}`}>
                         <AccordionTrigger className="text-base hover:no-underline">
                           <span className="font-semibold text-primary">{item.term}</span>
                         </AccordionTrigger>
@@ -190,6 +203,74 @@ export function CorrectionInterface() {
                       </AccordionItem>
                     ))}
                   </Accordion>
+                </CardContent>
+              </Card>
+            )}
+
+            {correctionResult.toneAnalysis && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center space-x-2">
+                    <Smile className="h-6 w-6 text-primary" />
+                    <CardTitle className="text-xl">Tone & Formality Analysis</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p><span className="font-semibold">Detected Tone:</span> {correctionResult.toneAnalysis.detectedTone}</p>
+                  {correctionResult.toneAnalysis.suggestions && (
+                    <Alert variant="default">
+                       <Info className="h-4 w-4" />
+                      <AlertTitle className="text-sm font-semibold">Suggestions</AlertTitle>
+                      <AlertDescription className="whitespace-pre-wrap text-xs">
+                        {correctionResult.toneAnalysis.suggestions}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {correctionResult.idiomExplanations && correctionResult.idiomExplanations.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center space-x-2">
+                    <Quote className="h-6 w-6 text-primary" />
+                    <CardTitle className="text-xl">Idioms & Common Phrases</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Explanations for expressions found in your text.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    {correctionResult.idiomExplanations.map((item, index) => (
+                      <AccordionItem value={`idiom-${index}`} key={`idiom-${index}`}>
+                        <AccordionTrigger className="text-base hover:no-underline">
+                           <span className="font-semibold text-primary">{item.idiom}</span>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-1 text-sm text-muted-foreground whitespace-pre-wrap">
+                          <p><span className="font-medium text-foreground/80">Meaning:</span> {item.meaning}</p>
+                          {item.example && <p><span className="font-medium text-foreground/80">Example:</span> {item.example}</p>}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </CardContent>
+              </Card>
+            )}
+
+            {correctionResult.structureSuggestions && (
+               <Card>
+                <CardHeader>
+                  <div className="flex items-center space-x-2">
+                    <Shuffle className="h-6 w-6 text-primary" />
+                    <CardTitle className="text-xl">Sentence Structure Suggestions</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {correctionResult.structureSuggestions}
+                  </p>
                 </CardContent>
               </Card>
             )}
