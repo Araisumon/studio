@@ -32,28 +32,28 @@ export default function PolyglotPalPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 md:p-8 relative">
-      <header className="w-full mb-8">
-        <div className="flex items-center justify-between py-4 border-b">
+    <div className="min-h-screen flex flex-col items-center">
+      <header className="w-full sticky top-0 z-40 bg-background">
+        <div className="container mx-auto flex items-center justify-between py-3 px-4 md:px-6 bg-card shadow-md">
           <div className="text-2xl font-bold text-accent">
             Buzz
           </div>
 
           <div className="flex-grow flex flex-col items-center">
             <div className="flex items-center justify-center space-x-2">
-              <Languages className="h-9 w-9 text-primary md:h-10 md:w-10" />
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
+              <Languages className="h-8 w-8 text-primary md:h-9 md:w-9" />
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
                 Polyglot Pal
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1 md:space-x-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label="Share Polyglot Pal" onClick={handleShare}>
-                    <Share2 className="h-6 w-6" />
+                    <Share2 className="h-5 w-5 md:h-6 md:w-6" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -67,7 +67,7 @@ export default function PolyglotPalPage() {
                 <TooltipTrigger asChild>
                   <Link href="/" passHref>
                     <Button variant="ghost" size="icon" aria-label="Home">
-                      <Home className="h-6 w-6" />
+                      <Home className="h-5 w-5 md:h-6 md:w-6" />
                     </Button>
                   </Link>
                 </TooltipTrigger>
@@ -78,18 +78,21 @@ export default function PolyglotPalPage() {
             </TooltipProvider>
           </div>
         </div>
-        <p className="text-center mt-4 text-lg text-muted-foreground">
-          Your AI-powered multilingual writing assistant and translator.
-        </p>
       </header>
       
-      <main className="w-full max-w-3xl">
-        <CorrectionInterface />
-      </main>
+      <div className="w-full p-4 md:p-8 flex flex-col items-center">
+        <p className="text-center my-6 text-md md:text-lg text-muted-foreground max-w-2xl">
+          Refine your writing or translate text in moments. Enter your text, pick your languages, and let Polyglot Pal assist you!
+        </p>
+        
+        <main className="w-full max-w-3xl">
+          <CorrectionInterface />
+        </main>
 
-      <footer className="mt-12 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} Polyglot Pal. Enhance your writing and break language barriers effortlessly.</p>
-      </footer>
+        <footer className="mt-12 text-center text-sm text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} Polyglot Pal. Enhance your writing and break language barriers effortlessly.</p>
+        </footer>
+      </div>
       <BackToTopButton />
     </div>
   );

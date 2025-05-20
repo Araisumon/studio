@@ -161,7 +161,7 @@ export function CorrectionInterface() {
                     {...field}
                     placeholder={mode === 'correct' ? "Type or paste text to correct..." : "Type or paste text to translate..."}
                     rows={8}
-                    className="resize-y text-base pr-10" // Added pr-10 for reset button
+                    className="resize-y text-base pr-10" 
                     aria-label="Text to process"
                     disabled={isLoading}
                   />
@@ -240,7 +240,7 @@ export function CorrectionInterface() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button type="submit" disabled={isLoading} className="flex-grow md:flex-grow-0 px-6 py-3 text-base">
+                        <Button type="submit" disabled={isLoading} className="flex-grow md:flex-grow-0 px-6 py-3 text-base h-auto">
                           {isLoading ? (
                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                           ) : (
@@ -260,9 +260,10 @@ export function CorrectionInterface() {
         </Tabs>
 
         {isLoading && (
-          <div className="flex items-center justify-center p-8 rounded-md border border-dashed mt-6">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-3 text-muted-foreground">Polyglot Pal is thinking...</p>
+          <div className="flex flex-col items-center justify-center p-8 md:p-12 rounded-md border border-dashed mt-6 space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-lg text-muted-foreground text-center">Polyglot Pal is working its magic...</p>
+            <p className="text-sm text-muted-foreground text-center">Please wait a moment.</p>
           </div>
         )}
 
