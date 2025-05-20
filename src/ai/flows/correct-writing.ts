@@ -1,3 +1,4 @@
+
 // src/ai/flows/correct-writing.ts
 'use server';
 
@@ -5,7 +6,8 @@
  * @fileOverview AI-powered writing correction flow.
  *
  * This file defines a Genkit flow that analyzes and corrects writing based on user-defined settings
- * for grammar, spelling, punctuation, style, and correction level.
+ * for grammar, spelling, punctuation, style, and correction level. It also provides explanations
+ * with examples for the corrections made.
  *
  * @exports correctWriting - The main function to initiate the writing correction flow.
  * @exports CorrectWritingInput - The input type for the correctWriting function.
@@ -33,7 +35,7 @@ export type CorrectWritingInput = z.infer<typeof CorrectWritingInputSchema>;
 
 const CorrectWritingOutputSchema = z.object({
   correctedText: z.string().describe('The corrected text.'),
-  explanation: z.string().optional().describe('Explanation of the changes made, if any.'),
+  explanation: z.string().optional().describe('Explanation of the changes made, including illustrative examples where appropriate.'),
 });
 export type CorrectWritingOutput = z.infer<typeof CorrectWritingOutputSchema>;
 
@@ -47,6 +49,7 @@ const correctWritingPrompt = ai.definePrompt({
   output: {schema: CorrectWritingOutputSchema},
   prompt: `You are a highly configurable writing assistant. Your task is to correct the provided text based on the user's specified settings.
 Always respond with the corrected text and a short explanation of the changes made.
+When explaining the corrections, for each significant change (grammar, spelling, punctuation, style), provide a brief example sentence that demonstrates the correct usage or contrasts the incorrect usage with the correct one. Make these examples concise and directly relevant to the user's original text and the corrections applied.
 The user's text is in {{{language}}}.
 
 Correction Settings:
