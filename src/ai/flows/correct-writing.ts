@@ -4,7 +4,8 @@
 /**
  * @fileOverview AI-powered writing correction flow.
  *
- * This file defines a Genkit flow that analyzes and corrects writing for grammar, spelling, punctuation, and style.
+ * This file defines a Genkit flow that analyzes and corrects writing based on user-defined settings
+ * for grammar, spelling, punctuation, style, and correction level.
  *
  * @exports correctWriting - The main function to initiate the writing correction flow.
  * @exports CorrectWritingInput - The input type for the correctWriting function.
@@ -17,6 +18,16 @@ import {z} from 'genkit';
 const CorrectWritingInputSchema = z.object({
   text: z.string().describe('The text to be corrected.'),
   language: z.string().describe('The language of the text.'),
+  correctionLevel: z.enum(['gentle', 'standard', 'strict']).default('standard').optional()
+    .describe("The desired level of correction intensity: 'gentle', 'standard', or 'strict'."),
+  flagGrammar: z.boolean().default(true).optional()
+    .describe('Whether to correct grammar errors.'),
+  flagSpelling: z.boolean().default(true).optional()
+    .describe('Whether to correct spelling errors.'),
+  flagPunctuation: z.boolean().default(true).optional()
+    .describe('Whether to correct punctuation errors.'),
+  flagStyle: z.boolean().default(false).optional()
+    .describe('Whether to suggest style improvements.'),
 });
 export type CorrectWritingInput = z.infer<typeof CorrectWritingInputSchema>;
 
@@ -34,9 +45,25 @@ const correctWritingPrompt = ai.definePrompt({
   name: 'correctWritingPrompt',
   input: {schema: CorrectWritingInputSchema},
   output: {schema: CorrectWritingOutputSchema},
-  prompt: `You are a writing assistant that corrects grammar, spelling, punctuation and style in the given text. You should respond with the corrected text, and a short explanation of the changes you made. The user language is {{{language}}}. 
+  prompt: `You are a highly configurable writing assistant. Your task is to correct the provided text based on the user's specified settings.
+Always respond with the corrected text and a short explanation of the changes made.
+The user's text is in {{{language}}}.
 
-Text: {{{text}}}`,
+Correction Settings:
+- Correction Level: {{{correctionLevel}}}
+  - 'gentle': Provide only essential corrections. Focus on major errors that impede understanding. Be lenient with minor stylistic issues.
+  - 'standard': Provide a balanced set of corrections for grammar, spelling, punctuation, and clarity. Improve readability and flow.
+  - 'strict': Provide comprehensive corrections, addressing all errors in grammar, spelling, punctuation, style, and flow. Aim for formal and precise language.
+
+Focus Areas (true means correct this aspect, false means ignore unless critical for understanding):
+- Correct Grammar: {{{flagGrammar}}}
+- Correct Spelling: {{{flagSpelling}}}
+- Correct Punctuation: {{{flagPunctuation}}}
+- Improve Style: {{{flagStyle}}} (If true, suggest improvements to style, tone, and word choice. If false, focus primarily on correctness.)
+
+Original Text:
+{{{text}}}
+`,
 });
 
 const correctWritingFlow = ai.defineFlow(

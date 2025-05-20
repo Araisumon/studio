@@ -51,6 +51,7 @@ export function CorrectionInterface() {
       const input: CorrectWritingInput = {
         text: data.text,
         language: data.language,
+        ...settings, // Pass the current settings to the AI flow
       };
       const result = await correctWriting(input);
       setCorrectionResult(result);
@@ -70,7 +71,7 @@ export function CorrectionInterface() {
     setSettings(newSettings);
     toast({
       title: "Settings Updated",
-      description: "Your preferences have been saved (UI demo).",
+      description: "Your preferences have been saved and will be applied to the next correction.",
     });
   };
 

@@ -56,7 +56,7 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
         <SheetHeader>
           <SheetTitle>Customize Settings</SheetTitle>
           <SheetDescription>
-            Adjust Polyglot Pal to your writing preferences. (Note: These settings are for UI demonstration and do not currently alter AI behavior.)
+            Adjust Polyglot Pal to your writing preferences. These settings will be applied to the next correction.
           </SheetDescription>
         </SheetHeader>
         <div className="grid gap-6 py-6">
