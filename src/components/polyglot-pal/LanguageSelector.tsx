@@ -28,6 +28,7 @@ const languages: Language[] = [
   { value: "Russian", label: "Русский (Russian)" },
   { value: "Arabic", label: "العربية (Arabic)" },
   { value: "Hindi", label: "हिन्दी (Hindi)" },
+  { value: "Bengali", label: "বাংলা (Bengali)" },
 ];
 
 interface LanguageSelectorProps {
