@@ -10,7 +10,7 @@ export function ThemeToggle() {
   const [theme, setTheme] = React.useState<"light" | "dark">("light");
 
   React.useEffect(() => {
-    const storedTheme = localStorage.getItem("polyglot-pal-theme") as "light" | "dark" | null;
+    const storedTheme = localStorage.getItem("polyglot-buzz-theme") as "light" | "dark" | null;
     const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     const initialTheme = storedTheme || systemTheme;
     setTheme(initialTheme);
@@ -20,7 +20,7 @@ export function ThemeToggle() {
   const toggleTheme = () => {
     setTheme((prevTheme) => {
       const newTheme = prevTheme === "light" ? "dark" : "light";
-      localStorage.setItem("polyglot-pal-theme", newTheme);
+      localStorage.setItem("polyglot-buzz-theme", newTheme);
       document.documentElement.classList.toggle("dark", newTheme === "dark");
       return newTheme;
     });

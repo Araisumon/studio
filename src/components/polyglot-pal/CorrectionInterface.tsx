@@ -262,7 +262,7 @@ export function CorrectionInterface() {
         {isLoading && (
           <div className="flex flex-col items-center justify-center p-8 md:p-12 rounded-md border border-dashed mt-6 space-y-4">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-lg text-muted-foreground text-center">Polyglot Pal is working its magic...</p>
+            <p className="text-lg text-muted-foreground text-center">Polyglot Buzz is working its magic...</p>
             <p className="text-sm text-muted-foreground text-center">Please wait a moment.</p>
           </div>
         )}

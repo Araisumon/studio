@@ -18,7 +18,7 @@ export default function PolyglotPalPage() {
       .then(() => {
         toast({
           title: "Link Copied!",
-          description: "Polyglot Pal link copied to your clipboard.",
+          description: "Polyglot Buzz link copied to your clipboard.",
         });
       })
       .catch(err => {
@@ -43,7 +43,7 @@ export default function PolyglotPalPage() {
             <div className="flex items-center justify-center space-x-2">
               <Languages className="h-8 w-8 text-primary md:h-9 md:w-9" />
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
-                Polyglot Pal
+                Polyglot Buzz
               </h1>
             </div>
           </div>
@@ -52,7 +52,7 @@ export default function PolyglotPalPage() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Share Polyglot Pal" onClick={handleShare}>
+                  <Button variant="ghost" size="icon" aria-label="Share Polyglot Buzz" onClick={handleShare}>
                     <Share2 className="h-5 w-5 md:h-6 md:w-6" />
                   </Button>
                 </TooltipTrigger>
@@ -82,7 +82,7 @@ export default function PolyglotPalPage() {
       
       <div className="w-full p-4 md:p-8 flex flex-col items-center">
         <p className="text-center my-6 text-md md:text-lg text-muted-foreground max-w-2xl">
-          Refine your writing or translate text in moments. Enter your text, pick your languages, and let Polyglot Pal assist you!
+          Refine your writing or translate text in moments. Enter your text, pick your languages, and let Polyglot Buzz assist you!
         </p>
         
         <main className="w-full max-w-3xl">
@@ -90,7 +90,7 @@ export default function PolyglotPalPage() {
         </main>
 
         <footer className="mt-12 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Polyglot Pal. Enhance your writing and break language barriers effortlessly.</p>
+          <p>&copy; {new Date().getFullYear()} Polyglot Buzz. Enhance your writing and break language barriers effortlessly.</p>
         </footer>
       </div>
       <BackToTopButton />

@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Polyglot Pal - AI Writing Assistant',
-  description: 'Correct your writing in any language with Polyglot Pal.',
+  title: 'Polyglot Buzz - AI Writing Assistant',
+  description: 'Correct your writing in any language with Polyglot Buzz.',
 };
 
 export default function RootLayout({
