@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -71,12 +70,13 @@ export function CorrectionInterface() {
         setAvailableVoices(voices);
       };
       loadVoices(); // Initial load
-      window.speechSynthesis.onvoiceschanged = loadVoices; // Update when voices change
+      // Voices might load asynchronously, so listen for changes
+      window.speechSynthesis.onvoiceschanged = loadVoices;
 
       return () => {
-        window.speechSynthesis.onvoiceschanged = null;
+        window.speechSynthesis.onvoiceschanged = null; // Clean up listener
         if (utteranceRef.current) {
-          window.speechSynthesis.cancel();
+          window.speechSynthesis.cancel(); // Stop any speech on unmount
         }
       };
     }
@@ -88,17 +88,17 @@ export function CorrectionInterface() {
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognitionAPI) {
         speechRecognitionRef.current = new SpeechRecognitionAPI();
-        speechRecognitionRef.current.continuous = false;
+        speechRecognitionRef.current.continuous = false; // Capture single utterance
         speechRecognitionRef.current.interimResults = false;
 
-        speechRecognitionRef.current.onresult = (event) => {
+        speechRecognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[event.results.length - 1][0].transcript.trim();
           form.setValue("text", transcript);
-          setIsRecording(false);
+          setIsRecording(false); // Turn off recording indicator
           toast({ title: "Voice input captured!", description: "Text has been entered for translation." });
         };
 
-        speechRecognitionRef.current.onerror = (event) => {
+        speechRecognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
           console.error("Speech recognition error", event.error);
           toast({ variant: "destructive", title: "Voice Error", description: `Speech recognition error: ${event.error}` });
           setIsRecording(false);
@@ -112,12 +112,13 @@ export function CorrectionInterface() {
       console.warn("Speech Recognition API not supported in this browser.");
     }
 
+    // Cleanup function to stop recognition if component unmounts
     return () => {
       if (speechRecognitionRef.current) {
         speechRecognitionRef.current.stop();
       }
     };
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
   const handleToggleRecording = () => {
     if (!speechRecognitionRef.current) {
@@ -129,15 +130,17 @@ export function CorrectionInterface() {
       speechRecognitionRef.current.stop();
       setIsRecording(false);
     } else {
+      // Before starting, set the language for recognition
       try {
-        speechRecognitionRef.current.lang = spokenLanguageForTranslation;
+        speechRecognitionRef.current.lang = spokenLanguageForTranslation; // Use selected spoken language
         speechRecognitionRef.current.start();
         setIsRecording(true);
         toast({ title: "Listening...", description: "Speak now." });
       } catch (err) {
+        // Handle cases where start() might fail (e.g., no microphone, permissions denied previously)
         console.error("Error starting speech recognition:", err);
         toast({ variant: "destructive", title: "Could not start listening", description: "Please ensure microphone permissions are granted and try again."});
-        setIsRecording(false); 
+        setIsRecording(false); // Reset if start fails
       }
     }
   };
@@ -215,10 +218,10 @@ export function CorrectionInterface() {
 
   const handleModeChange = (newMode: string) => {
     setMode(newMode as "correct" | "translate");
-    setCorrectionResult(null);
+    setCorrectionResult(null); // Clear previous results
     setTranslationResult(null);
-    form.clearErrors();
-    if (isSpeaking && utteranceRef.current) {
+    form.clearErrors(); // Clear any form errors
+    if (isSpeaking && utteranceRef.current) { // Stop any ongoing speech
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
     }
@@ -232,7 +235,7 @@ export function CorrectionInterface() {
       speechRecognitionRef.current?.stop();
       setIsRecording(false);
     }
-    if (isSpeaking && utteranceRef.current) {
+    if (isSpeaking && utteranceRef.current) { // Stop any ongoing speech
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
     }
@@ -242,31 +245,36 @@ export function CorrectionInterface() {
     });
   };
 
-  const handleSpeakTranslatedText = () => {
-    if (!translationResult || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+  const speakText = (textToSpeak: string, languageCode: string) => {
+    if (!textToSpeak || typeof window === 'undefined' || !('speechSynthesis' in window)) {
       toast({ variant: "destructive", title: "Not Supported", description: "Text-to-speech is not supported or no text to speak." });
       return;
     }
 
+    // If already speaking, cancel current speech and toggle state.
+    // If not speaking, or speaking different content, start new speech.
     if (isSpeaking) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
-      return;
+      // If the request was to stop the current speech, return here.
+      // Otherwise, it will proceed to speak new text.
+      // For simplicity, if user clicks while speaking, it just stops. To re-speak, they click again.
+      return; 
     }
 
-    const utterance = new SpeechSynthesisUtterance(translationResult);
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utteranceRef.current = utterance;
 
-    // Try to find a voice for the target language
-    const voice = availableVoices.find(v => v.lang === targetLanguage) || 
-                  availableVoices.find(v => v.lang.startsWith(targetLanguage.split('-')[0])) || // Match base language e.g. 'en' for 'en-US'
+    const voice = availableVoices.find(v => v.lang === languageCode) || 
+                  availableVoices.find(v => v.lang.startsWith(languageCode.split('-')[0])) ||
                   null;
+    
     if (voice) {
       utterance.voice = voice;
     } else {
-       toast({ title: "Voice Note", description: `No specific voice found for ${targetLanguage}. Using default.`});
+       toast({ title: "Voice Note", description: `No specific voice found for ${languageCode}. Using default.`});
     }
-    utterance.lang = targetLanguage; // Set lang on utterance itself too
+    utterance.lang = languageCode; 
 
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
@@ -277,6 +285,18 @@ export function CorrectionInterface() {
     };
     
     window.speechSynthesis.speak(utterance);
+  };
+
+  const handleSpeakTranslatedText = () => {
+    if (translationResult) {
+      speakText(translationResult, targetLanguage);
+    }
+  };
+
+  const handleSpeakCorrectedText = () => {
+    if (correctionResult?.correctedText) {
+      speakText(correctionResult.correctedText, form.getValues("inputLanguage"));
+    }
   };
 
   const submitButtonText = mode === "correct" ? "Correct & Analyze" : "Translate";
@@ -442,11 +462,29 @@ export function CorrectionInterface() {
         {mode === "correct" && correctionResult && (
           <div className="space-y-6 mt-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <div className="flex items-center space-x-2">
                     <FileText className="h-6 w-6 text-primary" />
                     <CardTitle className="text-xl">Corrected Text</CardTitle>
                 </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleSpeakCorrectedText}
+                        disabled={!correctionResult?.correctedText || isLoading || (typeof window !== 'undefined' && !('speechSynthesis' in window))}
+                        aria-label={isSpeaking ? "Stop speaking corrected text" : "Listen to corrected text"}
+                      >
+                        {isSpeaking ? <VolumeX className="h-5 w-5 text-destructive" /> : <Volume2 className="h-5 w-5" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{isSpeaking ? "Stop speaking" : "Listen to corrected text"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -583,7 +621,7 @@ export function CorrectionInterface() {
                           size="icon"
                           onClick={handleSpeakTranslatedText}
                           disabled={!translationResult || isLoading || (typeof window !== 'undefined' && !('speechSynthesis' in window))}
-                          aria-label={isSpeaking ? "Stop speaking" : "Listen to translated text"}
+                          aria-label={isSpeaking ? "Stop speaking translated text" : "Listen to translated text"}
                         >
                           {isSpeaking ? <VolumeX className="h-5 w-5 text-destructive" /> : <Volume2 className="h-5 w-5" />}
                         </Button>
@@ -603,7 +641,7 @@ export function CorrectionInterface() {
                   aria-label="Translated text"
                 />
                  <CardDescription className="mt-2 text-xs">
-                    Your text translated to {targetLanguage}.
+                    Your text translated to {availableVoices.find(v => v.lang === targetLanguage)?.name || targetLanguage}.
                   </CardDescription>
               </CardContent>
             </Card>
@@ -613,4 +651,6 @@ export function CorrectionInterface() {
     </Card>
   );
 }
+    
+
     
