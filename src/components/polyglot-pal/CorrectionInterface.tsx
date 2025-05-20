@@ -31,9 +31,9 @@ const defaultSettings: PolyglotSettings = {
   flagSpelling: true,
   flagPunctuation: true,
   flagStyle: false,
-  analyzeTone: true, // Enabled by default as per previous update
-  explainIdioms: true, // Enabled by default
-  suggestStructureVariations: true, // Enabled by default
+  analyzeTone: true,
+  explainIdioms: true,
+  suggestStructureVariations: true,
 };
 
 export function CorrectionInterface() {
@@ -42,7 +42,7 @@ export function CorrectionInterface() {
   const [translationResult, setTranslationResult] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<PolyglotSettings>(defaultSettings);
   const [mode, setMode] = React.useState<"correct" | "translate">("correct");
-  const [targetLanguage, setTargetLanguage] = React.useState<string>("Spanish"); // Default target language
+  const [targetLanguage, setTargetLanguage] = React.useState<string>("Spanish");
   const { toast } = useToast();
 
   const form = useForm<CorrectionFormValues>({
@@ -121,15 +121,13 @@ export function CorrectionInterface() {
 
   const handleModeChange = (newMode: string) => {
     setMode(newMode as "correct" | "translate");
-    setCorrectionResult(null); // Clear previous results
-    setTranslationResult(null); // Clear previous results
-    // Reset form validation state if needed, or rely on Zod schema for current fields
-    form.clearErrors(); 
+    setCorrectionResult(null);
+    setTranslationResult(null);
+    form.clearErrors();
   };
   
   const submitButtonText = mode === "correct" ? "Correct & Analyze" : "Translate";
   const SubmitButtonIcon = mode === "correct" ? Wand2 : ArrowRightLeft;
-
 
   return (
     <Card className="w-full shadow-xl">
@@ -186,9 +184,7 @@ export function CorrectionInterface() {
                       value={targetLanguage}
                       onChange={setTargetLanguage}
                       disabled={isLoading}
-                      // Optionally, add a placeholder specific to target language
                     />
-                    {/* Basic validation for target language handled in onSubmit */}
                  )}
               </div>
               <div className="flex gap-2 w-full md:w-auto">
