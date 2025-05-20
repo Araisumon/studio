@@ -12,14 +12,15 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LanguageSelector } from "./LanguageSelector";
 import { SettingsPanel, type PolyglotSettings } from "./SettingsPanel";
 import { correctWriting, type CorrectWritingInput, type CorrectWritingOutput } from "@/ai/flows/correct-writing";
+import { translateContent, type TranslateContentInput, type TranslateContentOutput } from "@/ai/flows/translate-content";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Info, Wand2, BookOpenText, Smile, Quote, Shuffle, FileText } from "lucide-react";
+import { Loader2, Info, Wand2, BookOpenText, Smile, Quote, Shuffle, FileText, ArrowRightLeft } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const formSchema = z.object({
-  text: z.string().min(1, "Please enter some text to correct."),
-  language: z.string().min(1, "Please select a language."),
+  text: z.string().min(1, "Please enter some text."),
+  inputLanguage: z.string().min(1, "Please select the input language for correction."),
 });
 
 type CorrectionFormValues = z.infer<typeof formSchema>;
@@ -30,53 +31,84 @@ const defaultSettings: PolyglotSettings = {
   flagSpelling: true,
   flagPunctuation: true,
   flagStyle: false,
-  analyzeTone: false,
-  explainIdioms: false,
-  suggestStructureVariations: false,
+  analyzeTone: true, // Enabled by default as per previous update
+  explainIdioms: true, // Enabled by default
+  suggestStructureVariations: true, // Enabled by default
 };
 
 export function CorrectionInterface() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [correctionResult, setCorrectionResult] = React.useState<CorrectWritingOutput | null>(null);
+  const [translationResult, setTranslationResult] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<PolyglotSettings>(defaultSettings);
+  const [mode, setMode] = React.useState<"correct" | "translate">("correct");
+  const [targetLanguage, setTargetLanguage] = React.useState<string>("Spanish"); // Default target language
   const { toast } = useToast();
 
   const form = useForm<CorrectionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       text: "",
-      language: "English",
+      inputLanguage: "English",
     },
   });
 
   const onSubmit = async (data: CorrectionFormValues) => {
     setIsLoading(true);
     setCorrectionResult(null);
-    try {
-      const input: CorrectWritingInput = {
-        text: data.text,
-        language: data.language,
-        correctionLevel: settings.correctionLevel,
-        flagGrammar: settings.flagGrammar,
-        flagSpelling: settings.flagSpelling,
-        flagPunctuation: settings.flagPunctuation,
-        flagStyle: settings.flagStyle,
-        analyzeTone: settings.analyzeTone,
-        explainIdioms: settings.explainIdioms,
-        suggestStructureVariations: settings.suggestStructureVariations,
-      };
-      const result = await correctWriting(input);
-      setCorrectionResult(result);
-    } catch (error) {
-      console.error("Correction error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to process text: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
-      });
-    } finally {
-      setIsLoading(false);
+    setTranslationResult(null);
+
+    if (mode === "correct") {
+      try {
+        const input: CorrectWritingInput = {
+          text: data.text,
+          language: data.inputLanguage,
+          correctionLevel: settings.correctionLevel,
+          flagGrammar: settings.flagGrammar,
+          flagSpelling: settings.flagSpelling,
+          flagPunctuation: settings.flagPunctuation,
+          flagStyle: settings.flagStyle,
+          analyzeTone: settings.analyzeTone,
+          explainIdioms: settings.explainIdioms,
+          suggestStructureVariations: settings.suggestStructureVariations,
+        };
+        const result = await correctWriting(input);
+        setCorrectionResult(result);
+      } catch (error) {
+        console.error("Correction error:", error);
+        toast({
+          variant: "destructive",
+          title: "Error Correcting Text",
+          description: `Failed to process text: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
+        });
+      }
+    } else if (mode === "translate") {
+      if (!targetLanguage) {
+        toast({
+          variant: "destructive",
+          title: "Missing Information",
+          description: "Please select a target language for translation.",
+        });
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const input: TranslateContentInput = {
+          text: data.text,
+          targetLanguage: targetLanguage,
+        };
+        const result = await translateContent(input);
+        setTranslationResult(result.translatedText);
+      } catch (error) {
+        console.error("Translation error:", error);
+        toast({
+          variant: "destructive",
+          title: "Error Translating Text",
+          description: `Failed to translate text: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
+        });
+      }
     }
+    setIsLoading(false);
   };
 
   const handleSettingsChange = (newSettings: PolyglotSettings) => {
@@ -87,70 +119,102 @@ export function CorrectionInterface() {
     });
   };
 
+  const handleModeChange = (newMode: string) => {
+    setMode(newMode as "correct" | "translate");
+    setCorrectionResult(null); // Clear previous results
+    setTranslationResult(null); // Clear previous results
+    // Reset form validation state if needed, or rely on Zod schema for current fields
+    form.clearErrors(); 
+  };
+  
+  const submitButtonText = mode === "correct" ? "Correct & Analyze" : "Translate";
+  const SubmitButtonIcon = mode === "correct" ? Wand2 : ArrowRightLeft;
+
+
   return (
     <Card className="w-full shadow-xl">
       <CardContent className="p-6 space-y-6">
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <div>
-            <Controller
-              name="text"
-              control={form.control}
-              render={({ field }) => (
-                <Textarea
-                  {...field}
-                  placeholder="Type or paste your text here..."
-                  rows={8}
-                  className="resize-y text-base"
-                  aria-label="Text to correct"
-                  disabled={isLoading}
-                />
-              )}
-            />
-            {form.formState.errors.text && (
-              <p className="text-sm text-destructive mt-1">{form.formState.errors.text.message}</p>
-            )}
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="w-full md:flex-grow">
+        <Tabs value={mode} onValueChange={handleModeChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="correct">Correct & Analyze</TabsTrigger>
+            <TabsTrigger value="translate">Translate</TabsTrigger>
+          </TabsList>
+          
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
+            <div>
               <Controller
-                name="language"
+                name="text"
                 control={form.control}
                 render={({ field }) => (
-                  <LanguageSelector
-                    value={field.value}
-                    onChange={field.onChange}
+                  <Textarea
+                    {...field}
+                    placeholder={mode === 'correct' ? "Type or paste text to correct..." : "Type or paste text to translate..."}
+                    rows={8}
+                    className="resize-y text-base"
+                    aria-label="Text to process"
                     disabled={isLoading}
                   />
                 )}
               />
-               {form.formState.errors.language && (
-                <p className="text-sm text-destructive mt-1">{form.formState.errors.language.message}</p>
+              {form.formState.errors.text && (
+                <p className="text-sm text-destructive mt-1">{form.formState.errors.text.message}</p>
               )}
             </div>
-            <div className="flex gap-2 w-full md:w-auto">
-                <SettingsPanel settings={settings} onSettingsChange={handleSettingsChange} />
-                <Button type="submit" disabled={isLoading} className="flex-grow md:flex-grow-0 px-6 py-3 text-base">
-                  {isLoading ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  ) : (
-                    <Wand2 className="mr-2 h-5 w-5" />
-                  )}
-                  Correct & Analyze
-                </Button>
+
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+              <div className="w-full md:flex-grow space-y-1">
+                 {mode === "correct" && (
+                  <>
+                    <Controller
+                      name="inputLanguage"
+                      control={form.control}
+                      render={({ field }) => (
+                        <LanguageSelector
+                          value={field.value}
+                          onChange={field.onChange}
+                          disabled={isLoading}
+                        />
+                      )}
+                    />
+                    {form.formState.errors.inputLanguage && (
+                      <p className="text-sm text-destructive">{form.formState.errors.inputLanguage.message}</p>
+                    )}
+                  </>
+                 )}
+                 {mode === "translate" && (
+                    <LanguageSelector
+                      value={targetLanguage}
+                      onChange={setTargetLanguage}
+                      disabled={isLoading}
+                      // Optionally, add a placeholder specific to target language
+                    />
+                    {/* Basic validation for target language handled in onSubmit */}
+                 )}
+              </div>
+              <div className="flex gap-2 w-full md:w-auto">
+                  {mode === "correct" && <SettingsPanel settings={settings} onSettingsChange={handleSettingsChange} />}
+                  <Button type="submit" disabled={isLoading} className="flex-grow md:flex-grow-0 px-6 py-3 text-base">
+                    {isLoading ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      <SubmitButtonIcon className="mr-2 h-5 w-5" />
+                    )}
+                    {submitButtonText}
+                  </Button>
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
+        </Tabs>
 
         {isLoading && (
-          <div className="flex items-center justify-center p-8 rounded-md border border-dashed">
+          <div className="flex items-center justify-center p-8 rounded-md border border-dashed mt-6">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="ml-3 text-muted-foreground">Polyglot Pal is thinking...</p>
           </div>
         )}
 
-        {correctionResult && (
-          <div className="space-y-6">
+        {mode === "correct" && correctionResult && (
+          <div className="space-y-6 mt-6">
             <Card>
               <CardHeader>
                 <div className="flex items-center space-x-2">
@@ -274,6 +338,31 @@ export function CorrectionInterface() {
                 </CardContent>
               </Card>
             )}
+          </div>
+        )}
+
+        {mode === "translate" && translationResult && (
+           <div className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center space-x-2">
+                    <ArrowRightLeft className="h-6 w-6 text-primary" />
+                    <CardTitle className="text-xl">Translated Text</CardTitle>
+                </div>
+                 <CardDescription>
+                    Your text translated to {targetLanguage}.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={translationResult}
+                  readOnly
+                  rows={8}
+                  className="resize-y bg-secondary/30 text-base border-input focus-visible:ring-accent"
+                  aria-label="Translated text"
+                />
+              </CardContent>
+            </Card>
           </div>
         )}
       </CardContent>

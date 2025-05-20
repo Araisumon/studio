@@ -13,7 +13,7 @@ export default function PolyglotPalPage() {
           </h1>
         </div>
         <p className="mt-2 text-lg text-muted-foreground">
-          Your AI-powered multilingual writing assistant.
+          Your AI-powered multilingual writing assistant and translator.
         </p>
       </header>
       
@@ -22,7 +22,7 @@ export default function PolyglotPalPage() {
       </main>
 
       <footer className="mt-12 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} Polyglot Pal. Enhance your writing effortlessly.</p>
+        <p>&copy; {new Date().getFullYear()} Polyglot Pal. Enhance your writing and break language barriers effortlessly.</p>
       </footer>
     </div>
   );
