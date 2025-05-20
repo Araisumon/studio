@@ -9,6 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface Language {
   value: string;
@@ -35,10 +37,11 @@ interface LanguageSelectorProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  tooltipText?: string;
 }
 
-export function LanguageSelector({ value, onChange, disabled }: LanguageSelectorProps) {
-  return (
+export function LanguageSelector({ value, onChange, disabled, tooltipText }: LanguageSelectorProps) {
+  const selectComponent = (
     <Select onValueChange={onChange} value={value} disabled={disabled}>
       <SelectTrigger className="w-full md:w-[200px]">
         <SelectValue placeholder="Select language" />
@@ -52,4 +55,21 @@ export function LanguageSelector({ value, onChange, disabled }: LanguageSelector
       </SelectContent>
     </Select>
   );
+
+  if (tooltipText) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div>{selectComponent}</div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{tooltipText}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return selectComponent;
 }

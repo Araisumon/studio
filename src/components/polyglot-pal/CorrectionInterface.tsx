@@ -14,9 +14,11 @@ import { SettingsPanel, type PolyglotSettings } from "./SettingsPanel";
 import { correctWriting, type CorrectWritingInput, type CorrectWritingOutput } from "@/ai/flows/correct-writing";
 import { translateContent, type TranslateContentInput, type TranslateContentOutput } from "@/ai/flows/translate-content";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Info, Wand2, BookOpenText, Smile, Quote, Shuffle, FileText, ArrowRightLeft } from "lucide-react";
+import { Loader2, Info, Wand2, BookOpenText, Smile, Quote, Shuffle, FileText, ArrowRightLeft, RotateCcw } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 const formSchema = z.object({
   text: z.string().min(1, "Please enter some text."),
@@ -123,9 +125,20 @@ export function CorrectionInterface() {
     setMode(newMode as "correct" | "translate");
     setCorrectionResult(null);
     setTranslationResult(null);
-    form.clearErrors();
+    // Do not reset form text on mode change, only errors.
+    form.clearErrors(); 
   };
   
+  const handleReset = () => {
+    form.reset({ text: "", inputLanguage: form.getValues("inputLanguage") }); // Keep selected language
+    setCorrectionResult(null);
+    setTranslationResult(null);
+    toast({
+      title: "Reset",
+      description: "Input and results have been cleared.",
+    });
+  };
+
   const submitButtonText = mode === "correct" ? "Correct & Analyze" : "Translate";
   const SubmitButtonIcon = mode === "correct" ? Wand2 : ArrowRightLeft;
 
@@ -139,7 +152,7 @@ export function CorrectionInterface() {
           </TabsList>
           
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
-            <div>
+            <div className="relative">
               <Controller
                 name="text"
                 control={form.control}
@@ -148,12 +161,32 @@ export function CorrectionInterface() {
                     {...field}
                     placeholder={mode === 'correct' ? "Type or paste text to correct..." : "Type or paste text to translate..."}
                     rows={8}
-                    className="resize-y text-base"
+                    className="resize-y text-base pr-10" // Added pr-10 for reset button
                     aria-label="Text to process"
                     disabled={isLoading}
                   />
                 )}
               />
+               <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={handleReset} 
+                      className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+                      aria-label="Reset input and results"
+                      disabled={isLoading}
+                    >
+                      <RotateCcw className="h-5 w-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Reset input and results</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               {form.formState.errors.text && (
                 <p className="text-sm text-destructive mt-1">{form.formState.errors.text.message}</p>
               )}
@@ -171,6 +204,7 @@ export function CorrectionInterface() {
                           value={field.value}
                           onChange={field.onChange}
                           disabled={isLoading}
+                          tooltipText="Select the language of your original text"
                         />
                       )}
                     />
@@ -184,19 +218,42 @@ export function CorrectionInterface() {
                       value={targetLanguage}
                       onChange={setTargetLanguage}
                       disabled={isLoading}
+                      tooltipText="Select the language to translate your text into"
                     />
                  )}
               </div>
               <div className="flex gap-2 w-full md:w-auto">
-                  {mode === "correct" && <SettingsPanel settings={settings} onSettingsChange={handleSettingsChange} />}
-                  <Button type="submit" disabled={isLoading} className="flex-grow md:flex-grow-0 px-6 py-3 text-base">
-                    {isLoading ? (
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    ) : (
-                      <SubmitButtonIcon className="mr-2 h-5 w-5" />
-                    )}
-                    {submitButtonText}
-                  </Button>
+                  {mode === "correct" && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                           <div> {/* Wrap SettingsPanel trigger for Tooltip */}
+                            <SettingsPanel settings={settings} onSettingsChange={handleSettingsChange} />
+                           </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Customize correction settings</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                   )}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button type="submit" disabled={isLoading} className="flex-grow md:flex-grow-0 px-6 py-3 text-base">
+                          {isLoading ? (
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          ) : (
+                            <SubmitButtonIcon className="mr-2 h-5 w-5" />
+                          )}
+                          {submitButtonText}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{mode === 'correct' ? 'Get corrections and detailed analysis' : 'Translate your text to the selected language'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
               </div>
             </div>
           </form>
