@@ -13,7 +13,9 @@ import { LanguageSelector } from "./LanguageSelector";
 import { SettingsPanel, type PolyglotSettings } from "./SettingsPanel";
 import { correctWriting, type CorrectWritingInput, type CorrectWritingOutput } from "@/ai/flows/correct-writing";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Info, Wand2 } from "lucide-react";
+import { Loader2, Info, Wand2, BookOpenText } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 
 const formSchema = z.object({
   text: z.string().min(1, "Please enter some text to correct."),
@@ -51,7 +53,7 @@ export function CorrectionInterface() {
       const input: CorrectWritingInput = {
         text: data.text,
         language: data.language,
-        ...settings, // Pass the current settings to the AI flow
+        ...settings,
       };
       const result = await correctWriting(input);
       setCorrectionResult(result);
@@ -162,6 +164,34 @@ export function CorrectionInterface() {
                   {correctionResult.explanation}
                 </AlertDescription>
               </Alert>
+            )}
+
+            {correctionResult.keyVocabulary && correctionResult.keyVocabulary.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center space-x-2">
+                    <BookOpenText className="h-6 w-6 text-primary" />
+                    <CardTitle className="text-xl">Key Vocabulary & Phrases</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Important terms and phrases from your corrected text with explanations.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    {correctionResult.keyVocabulary.map((item, index) => (
+                      <AccordionItem value={`item-${index}`} key={index}>
+                        <AccordionTrigger className="text-base hover:no-underline">
+                          <span className="font-semibold text-primary">{item.term}</span>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {item.explanation}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </CardContent>
+              </Card>
             )}
           </div>
         )}

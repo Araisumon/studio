@@ -7,7 +7,7 @@
  *
  * This file defines a Genkit flow that analyzes and corrects writing based on user-defined settings
  * for grammar, spelling, punctuation, style, and correction level. It also provides explanations
- * with examples for the corrections made.
+ * with examples for the corrections made, and identifies key vocabulary.
  *
  * @exports correctWriting - The main function to initiate the writing correction flow.
  * @exports CorrectWritingInput - The input type for the correctWriting function.
@@ -33,9 +33,15 @@ const CorrectWritingInputSchema = z.object({
 });
 export type CorrectWritingInput = z.infer<typeof CorrectWritingInputSchema>;
 
+const VocabularyItemSchema = z.object({
+  term: z.string().describe('The key vocabulary word or phrase.'),
+  explanation: z.string().describe('A brief definition or example of usage for the term.'),
+});
+
 const CorrectWritingOutputSchema = z.object({
   correctedText: z.string().describe('The corrected text.'),
   explanation: z.string().optional().describe('Explanation of the changes made, including illustrative examples where appropriate.'),
+  keyVocabulary: z.array(VocabularyItemSchema).optional().describe('A list of 3-5 key vocabulary words or phrases identified from the corrected text, along with their definitions or usage examples. Focus on terms that were corrected or are good examples of proper usage in the target language.'),
 });
 export type CorrectWritingOutput = z.infer<typeof CorrectWritingOutputSchema>;
 
@@ -47,9 +53,15 @@ const correctWritingPrompt = ai.definePrompt({
   name: 'correctWritingPrompt',
   input: {schema: CorrectWritingInputSchema},
   output: {schema: CorrectWritingOutputSchema},
-  prompt: `You are a highly configurable writing assistant. Your task is to correct the provided text based on the user's specified settings.
-Always respond with the corrected text and a short explanation of the changes made.
+  prompt: `You are a highly configurable writing assistant and language learning helper. Your task is to correct the provided text based on the user's specified settings.
+Always respond with the corrected text, a short explanation of the changes made, and a list of key vocabulary.
+
+Explanation Guidance:
 When explaining the corrections, for each significant change (grammar, spelling, punctuation, style), provide a brief example sentence that demonstrates the correct usage or contrasts the incorrect usage with the correct one. Make these examples concise and directly relevant to the user's original text and the corrections applied.
+
+Key Vocabulary Guidance:
+Identify 3-5 key vocabulary words or phrases from the corrected text. Focus on terms that were corrected, are good examples of proper usage in the target language, or might be particularly useful for a language learner. For each term, provide a brief definition or an illustrative example sentence showing its correct usage.
+
 The user's text is in {{{language}}}.
 
 Correction Settings:
