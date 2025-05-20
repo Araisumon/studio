@@ -14,11 +14,10 @@ import { SettingsPanel, type PolyglotSettings } from "./SettingsPanel";
 import { correctWriting, type CorrectWritingInput, type CorrectWritingOutput } from "@/ai/flows/correct-writing";
 import { translateContent, type TranslateContentInput, type TranslateContentOutput } from "@/ai/flows/translate-content";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Info, Wand2, BookOpenText, Smile, Quote, Shuffle, FileText, ArrowRightLeft, RotateCcw } from "lucide-react";
+import { Loader2, Info, Wand2, BookOpenText, Smile, Quote, Shuffle, FileText, ArrowRightLeft, RotateCcw, Mic, MicOff } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
 
 const formSchema = z.object({
   text: z.string().min(1, "Please enter some text."),
@@ -38,22 +37,94 @@ const defaultSettings: PolyglotSettings = {
   suggestStructureVariations: true,
 };
 
+// Reference for SpeechRecognition
+let recognition: SpeechRecognition | null = null;
+
 export function CorrectionInterface() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [correctionResult, setCorrectionResult] = React.useState<CorrectWritingOutput | null>(null);
   const [translationResult, setTranslationResult] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<PolyglotSettings>(defaultSettings);
   const [mode, setMode] = React.useState<"correct" | "translate">("correct");
-  const [targetLanguage, setTargetLanguage] = React.useState<string>("Spanish");
+  
+  const [spokenLanguageForTranslation, setSpokenLanguageForTranslation] = React.useState<string>("en-US");
+  const [targetLanguage, setTargetLanguage] = React.useState<string>("es-ES");
   const { toast } = useToast();
+
+  const [isRecording, setIsRecording] = React.useState(false);
+  const speechRecognitionRef = React.useRef<SpeechRecognition | null>(null);
+
 
   const form = useForm<CorrectionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       text: "",
-      inputLanguage: "English",
+      inputLanguage: "en-US", // Default to English (US)
     },
   });
+
+  React.useEffect(() => {
+    // Initialize SpeechRecognition
+    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognitionAPI) {
+        speechRecognitionRef.current = new SpeechRecognitionAPI();
+        speechRecognitionRef.current.continuous = false;
+        speechRecognitionRef.current.interimResults = false;
+
+        speechRecognitionRef.current.onresult = (event) => {
+          const transcript = event.results[event.results.length - 1][0].transcript.trim();
+          form.setValue("text", transcript);
+          setIsRecording(false);
+          toast({ title: "Voice input captured!", description: "Text has been entered for translation." });
+        };
+
+        speechRecognitionRef.current.onerror = (event) => {
+          console.error("Speech recognition error", event.error);
+          toast({ variant: "destructive", title: "Voice Error", description: `Speech recognition error: ${event.error}` });
+          setIsRecording(false);
+        };
+        
+        speechRecognitionRef.current.onend = () => {
+          if (isRecording) { // Only set to false if it was genuinely stopped by API, not by user toggle
+             // setIsRecording(false); // This might cause issues if user clicks stop
+          }
+        };
+      }
+    } else {
+      console.warn("Speech Recognition API not supported in this browser.");
+    }
+
+    return () => {
+      if (speechRecognitionRef.current) {
+        speechRecognitionRef.current.stop();
+      }
+    };
+  }, []); // Removed isRecording from dependencies to avoid re-initialization
+
+  const handleToggleRecording = () => {
+    if (!speechRecognitionRef.current) {
+      toast({ variant: "destructive", title: "Not Supported", description: "Voice input is not supported in your browser." });
+      return;
+    }
+
+    if (isRecording) {
+      speechRecognitionRef.current.stop();
+      setIsRecording(false);
+    } else {
+      try {
+        speechRecognitionRef.current.lang = spokenLanguageForTranslation;
+        speechRecognitionRef.current.start();
+        setIsRecording(true);
+        toast({ title: "Listening...", description: "Speak now." });
+      } catch (err) {
+        console.error("Error starting speech recognition:", err);
+        toast({ variant: "destructive", title: "Could not start listening", description: "Please ensure microphone permissions are granted and try again."});
+        setIsRecording(false); // Ensure state is reset if start fails
+      }
+    }
+  };
+
 
   const onSubmit = async (data: CorrectionFormValues) => {
     setIsLoading(true);
@@ -64,7 +135,7 @@ export function CorrectionInterface() {
       try {
         const input: CorrectWritingInput = {
           text: data.text,
-          language: data.inputLanguage,
+          language: data.inputLanguage, // This is the language of the text being corrected
           correctionLevel: settings.correctionLevel,
           flagGrammar: settings.flagGrammar,
           flagSpelling: settings.flagSpelling,
@@ -97,7 +168,7 @@ export function CorrectionInterface() {
       try {
         const input: TranslateContentInput = {
           text: data.text,
-          targetLanguage: targetLanguage,
+          targetLanguage: targetLanguage, // This is BCP 47 from selector
         };
         const result = await translateContent(input);
         setTranslationResult(result.translatedText);
@@ -125,14 +196,17 @@ export function CorrectionInterface() {
     setMode(newMode as "correct" | "translate");
     setCorrectionResult(null);
     setTranslationResult(null);
-    // Do not reset form text on mode change, only errors.
     form.clearErrors(); 
   };
   
   const handleReset = () => {
-    form.reset({ text: "", inputLanguage: form.getValues("inputLanguage") }); // Keep selected language
+    form.reset({ text: "", inputLanguage: form.getValues("inputLanguage") });
     setCorrectionResult(null);
     setTranslationResult(null);
+    if (isRecording) {
+      speechRecognitionRef.current?.stop();
+      setIsRecording(false);
+    }
     toast({
       title: "Reset",
       description: "Input and results have been cleared.",
@@ -159,11 +233,11 @@ export function CorrectionInterface() {
                 render={({ field }) => (
                   <Textarea
                     {...field}
-                    placeholder={mode === 'correct' ? "Type or paste text to correct..." : "Type or paste text to translate..."}
+                    placeholder={mode === 'correct' ? "Type or paste text to correct..." : (isRecording ? "Listening..." : "Type, paste, or use microphone to input text to translate...")}
                     rows={8}
                     className="resize-y text-base pr-10" 
                     aria-label="Text to process"
-                    disabled={isLoading}
+                    disabled={isLoading || (mode === 'translate' && isRecording)}
                   />
                 )}
               />
@@ -192,8 +266,8 @@ export function CorrectionInterface() {
               )}
             </div>
 
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-              <div className="w-full md:flex-grow space-y-1">
+            <div className="flex flex-col md:flex-row gap-4 items-start">
+              <div className="w-full md:flex-grow space-y-2">
                  {mode === "correct" && (
                   <>
                     <Controller
@@ -205,6 +279,7 @@ export function CorrectionInterface() {
                           onChange={field.onChange}
                           disabled={isLoading}
                           tooltipText="Select the language of your original text"
+                          placeholder="Input Language (for correction)"
                         />
                       )}
                     />
@@ -214,15 +289,46 @@ export function CorrectionInterface() {
                   </>
                  )}
                  {mode === "translate" && (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <LanguageSelector
+                      value={spokenLanguageForTranslation}
+                      onChange={setSpokenLanguageForTranslation}
+                      disabled={isLoading || isRecording}
+                      tooltipText="Select the language you will speak in"
+                      placeholder="Spoken Language"
+                    />
                     <LanguageSelector
                       value={targetLanguage}
                       onChange={setTargetLanguage}
-                      disabled={isLoading}
+                      disabled={isLoading || isRecording}
                       tooltipText="Select the language to translate your text into"
+                      placeholder="Target Language"
                     />
+                   </div>
                  )}
               </div>
-              <div className="flex gap-2 w-full md:w-auto">
+              <div className="flex gap-2 w-full md:w-auto items-center">
+                  {mode === "translate" && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleToggleRecording}
+                            disabled={isLoading}
+                            aria-label={isRecording ? "Stop recording" : "Start recording"}
+                          >
+                            {isRecording ? <MicOff className="h-5 w-5 text-destructive" /> : <Mic className="h-5 w-5" />}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{isRecording ? "Stop voice input" : "Start voice input"}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                   {mode === "correct" && (
                     <TooltipProvider>
                       <Tooltip>
@@ -240,7 +346,7 @@ export function CorrectionInterface() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button type="submit" disabled={isLoading} className="flex-grow md:flex-grow-0 px-6 py-3 text-base h-auto">
+                        <Button type="submit" disabled={isLoading || (mode === 'translate' && isRecording)} className="flex-grow md:flex-grow-0 px-6 py-3 text-base h-auto">
                           {isLoading ? (
                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                           ) : (
