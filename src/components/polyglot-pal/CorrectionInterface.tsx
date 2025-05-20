@@ -14,7 +14,7 @@ import { SettingsPanel, type PolyglotSettings } from "./SettingsPanel";
 import { correctWriting, type CorrectWritingInput, type CorrectWritingOutput } from "@/ai/flows/correct-writing";
 import { translateContent, type TranslateContentInput, type TranslateContentOutput } from "@/ai/flows/translate-content";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Info, Wand2, BookOpenText, Smile, Quote, Shuffle, FileText, ArrowRightLeft, RotateCcw, Mic, MicOff } from "lucide-react";
+import { Loader2, Info, Wand2, BookOpenText, Smile, Quote, Shuffle, FileText, ArrowRightLeft, RotateCcw, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -37,9 +37,6 @@ const defaultSettings: PolyglotSettings = {
   suggestStructureVariations: true,
 };
 
-// Reference for SpeechRecognition
-let recognition: SpeechRecognition | null = null;
-
 export function CorrectionInterface() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [correctionResult, setCorrectionResult] = React.useState<CorrectWritingOutput | null>(null);
@@ -54,6 +51,10 @@ export function CorrectionInterface() {
   const [isRecording, setIsRecording] = React.useState(false);
   const speechRecognitionRef = React.useRef<SpeechRecognition | null>(null);
 
+  const [isSpeaking, setIsSpeaking] = React.useState(false);
+  const utteranceRef = React.useRef<SpeechSynthesisUtterance | null>(null);
+  const [availableVoices, setAvailableVoices] = React.useState<SpeechSynthesisVoice[]>([]);
+
 
   const form = useForm<CorrectionFormValues>({
     resolver: zodResolver(formSchema),
@@ -62,6 +63,24 @@ export function CorrectionInterface() {
       inputLanguage: "en-US", // Default to English (US)
     },
   });
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        setAvailableVoices(voices);
+      };
+      loadVoices(); // Initial load
+      window.speechSynthesis.onvoiceschanged = loadVoices; // Update when voices change
+
+      return () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        if (utteranceRef.current) {
+          window.speechSynthesis.cancel();
+        }
+      };
+    }
+  }, []);
 
   React.useEffect(() => {
     // Initialize SpeechRecognition
@@ -86,9 +105,7 @@ export function CorrectionInterface() {
         };
         
         speechRecognitionRef.current.onend = () => {
-          if (isRecording) { // Only set to false if it was genuinely stopped by API, not by user toggle
-             // setIsRecording(false); // This might cause issues if user clicks stop
-          }
+           // setIsRecording(false); // Let toggle handle this
         };
       }
     } else {
@@ -100,7 +117,7 @@ export function CorrectionInterface() {
         speechRecognitionRef.current.stop();
       }
     };
-  }, []); // Removed isRecording from dependencies to avoid re-initialization
+  }, []);
 
   const handleToggleRecording = () => {
     if (!speechRecognitionRef.current) {
@@ -120,7 +137,7 @@ export function CorrectionInterface() {
       } catch (err) {
         console.error("Error starting speech recognition:", err);
         toast({ variant: "destructive", title: "Could not start listening", description: "Please ensure microphone permissions are granted and try again."});
-        setIsRecording(false); // Ensure state is reset if start fails
+        setIsRecording(false); 
       }
     }
   };
@@ -130,12 +147,16 @@ export function CorrectionInterface() {
     setIsLoading(true);
     setCorrectionResult(null);
     setTranslationResult(null);
+    if (isSpeaking && utteranceRef.current) { // Stop any ongoing speech
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
 
     if (mode === "correct") {
       try {
         const input: CorrectWritingInput = {
           text: data.text,
-          language: data.inputLanguage, // This is the language of the text being corrected
+          language: data.inputLanguage, 
           correctionLevel: settings.correctionLevel,
           flagGrammar: settings.flagGrammar,
           flagSpelling: settings.flagSpelling,
@@ -168,7 +189,7 @@ export function CorrectionInterface() {
       try {
         const input: TranslateContentInput = {
           text: data.text,
-          targetLanguage: targetLanguage, // This is BCP 47 from selector
+          targetLanguage: targetLanguage, 
         };
         const result = await translateContent(input);
         setTranslationResult(result.translatedText);
@@ -196,7 +217,11 @@ export function CorrectionInterface() {
     setMode(newMode as "correct" | "translate");
     setCorrectionResult(null);
     setTranslationResult(null);
-    form.clearErrors(); 
+    form.clearErrors();
+    if (isSpeaking && utteranceRef.current) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
   };
   
   const handleReset = () => {
@@ -207,10 +232,51 @@ export function CorrectionInterface() {
       speechRecognitionRef.current?.stop();
       setIsRecording(false);
     }
+    if (isSpeaking && utteranceRef.current) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
     toast({
       title: "Reset",
       description: "Input and results have been cleared.",
     });
+  };
+
+  const handleSpeakTranslatedText = () => {
+    if (!translationResult || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      toast({ variant: "destructive", title: "Not Supported", description: "Text-to-speech is not supported or no text to speak." });
+      return;
+    }
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(translationResult);
+    utteranceRef.current = utterance;
+
+    // Try to find a voice for the target language
+    const voice = availableVoices.find(v => v.lang === targetLanguage) || 
+                  availableVoices.find(v => v.lang.startsWith(targetLanguage.split('-')[0])) || // Match base language e.g. 'en' for 'en-US'
+                  null;
+    if (voice) {
+      utterance.voice = voice;
+    } else {
+       toast({ title: "Voice Note", description: `No specific voice found for ${targetLanguage}. Using default.`});
+    }
+    utterance.lang = targetLanguage; // Set lang on utterance itself too
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = (event) => {
+      console.error("Speech synthesis error:", event.error);
+      toast({ variant: "destructive", title: "Speech Error", description: `Could not speak text: ${event.error}` });
+      setIsSpeaking(false);
+    };
+    
+    window.speechSynthesis.speak(utterance);
   };
 
   const submitButtonText = mode === "correct" ? "Correct & Analyze" : "Translate";
@@ -504,14 +570,29 @@ export function CorrectionInterface() {
         {mode === "translate" && translationResult && (
            <div className="space-y-6 mt-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <div className="flex items-center space-x-2">
                     <ArrowRightLeft className="h-6 w-6 text-primary" />
                     <CardTitle className="text-xl">Translated Text</CardTitle>
                 </div>
-                 <CardDescription>
-                    Your text translated to {targetLanguage}.
-                  </CardDescription>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleSpeakTranslatedText}
+                          disabled={!translationResult || isLoading || (typeof window !== 'undefined' && !('speechSynthesis' in window))}
+                          aria-label={isSpeaking ? "Stop speaking" : "Listen to translated text"}
+                        >
+                          {isSpeaking ? <VolumeX className="h-5 w-5 text-destructive" /> : <Volume2 className="h-5 w-5" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{isSpeaking ? "Stop speaking" : "Listen to translated text"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -521,6 +602,9 @@ export function CorrectionInterface() {
                   className="resize-y bg-secondary/30 text-base border-input focus-visible:ring-accent"
                   aria-label="Translated text"
                 />
+                 <CardDescription className="mt-2 text-xs">
+                    Your text translated to {targetLanguage}.
+                  </CardDescription>
               </CardContent>
             </Card>
           </div>
@@ -529,3 +613,4 @@ export function CorrectionInterface() {
     </Card>
   );
 }
+    
