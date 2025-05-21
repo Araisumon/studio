@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": ".", // A single dot means the root directory
+    "public": ".", 
     "ignore": [
       "firebase.json",
       "**/.*",
